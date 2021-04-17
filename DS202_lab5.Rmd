@@ -57,7 +57,7 @@ labels$MAKE <- factor(labels$MAKE, levels = c(12, 20, 49, 37),
                      labels = c("Ford", "Chevrolet", "Toyota", "Honda"))                         
 states %>% ggplot() +
   geom_polygon(  aes(x=long, y=lat, group=group),
-                color="grey", fill="black" ) + geom_text(data=labels, aes(label = MAKE, x=long, y=lat), color="white", size=3)
+                color="grey", fill="black" ) + geom_text(data=labels, aes(label = MAKE, x=long, y=lat), color="blue", size=3)
 ```
 
 From looking at the map it looks like chevy is the most dangerous car but as you go from right to left the cars change from chevy to a ford.
@@ -120,7 +120,7 @@ ggplot(fatalities, aes(x=long, y=lat)) +
   geom_polygon(aes(group=group, fill=FATALS))
 ```
 
-The plot shown mainly has three main colors. The gray areas are places that have no recorded fatal car accidents in the data. The dark blue shows areas with minimal amounts of fatalities and light blue shows the most number of fatal car accidents. In southern California its the light blue which has alot of traffic and it makes sense that there would be alot of accidents there. The one thing I am surprised about is that its not light blue in NYC where there is alot of traffic.
+The plot shows mainly has three colors. The gray areas are places that have no recorded fatal car accidents in the data. The dark blue shows areas with minimal amounts of fatalities and light blue shows the most number of fatal car accidents. In southern California its the light blue which has alot of traffic and it makes sense that there would be alot of accidents there. The one thing I am surprised about is that its not light blue in NYC where there is alot of traffic.
 
 ### Question 8
 ```{R}
