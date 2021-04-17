@@ -1,0 +1,157 @@
+---
+title: "lab5"
+author: "Saketh Jonnadula"
+date: "4/16/2021"
+output: html_document
+---
+### Data Input and Libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(maps)
+acc <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv", stringsAsFactors = FALSE)
+prsn <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv", stringsAsFactors = FALSE)
+```
+
+### Question 1
+```{r}
+acc$Weekday <- wday(acc$DAY_WEEK, label = T)
+acc %>%
+  ggplot(aes(Weekday)) + geom_bar() + ylab('Number of Accidents') + ggtitle('Accidents per Day of the Week')
+```
+
+The most accidents occur on Saturdays and Sundays
+
+### Question 2
+```{r}
+fatal <- prsn %>%
+  filter(INJ_SEV == 4)
+fatal
+```
+
+### Question 3
+```{r}
+question3 <- fatal %>%
+  group_by(STATE, MAKE) %>%
+  summarise(nf = n())
+danger <- question3 %>% 
+  na.omit() %>%
+  group_by(STATE) %>%
+  filter(nf == max(nf))
+```
+
+### Question 4
+```{r warning=FALSE}
+code <- readxl::read_xlsx("states.xlsx")
+states <- map_data('state')
+code$'State Name' <- tolower(code$'State Name')
+code$'State Code' <- as.numeric(code$'State Code')
+labels <- states %>%
+   group_by(region) %>%
+   summarise(long= mean(long, na.rm = TRUE), lat= mean(lat, na.rm = TRUE))
+labels <- left_join(labels, code, by = c("region" = "State Name"))
+labels <- left_join(labels, danger, by = c("State Code" = "STATE"))
+labels$MAKE <- factor(labels$MAKE, levels = c(12, 20, 49, 37), 
+                     labels = c("Ford", "Chevrolet", "Toyota", "Honda"))                         
+states %>% ggplot() +
+  geom_polygon(  aes(x=long, y=lat, group=group),
+                color="grey", fill="black" ) + geom_text(data=labels, aes(label = MAKE, x=long, y=lat), color="white", size=3)
+```
+
+From looking at the map it looks like chevy is the most dangerous car but as you go from right to left the cars change from chevy to a ford.
+
+### Question 5
+```{r}
+question5 <- inner_join(prsn, acc, by="ST_CASE")
+```
+
+### Question 6
+```{r}
+question6 <- question5 %>%
+  filter(SEX == 1 || SEX == 2) %>%
+  group_by(ST_CASE) %>%
+  summarise(avgSex = mean(SEX))
+question6$sexStr <- ifelse(question6$avgSex == 1, 'Men', ifelse(question6$avgSex == 2, 'Women', 'Both'))
+accident <- question6 %>%
+  select(ST_CASE, sexStr) %>%
+  inner_join( acc, by='ST_CASE')
+grouped <- accident %>%
+  filter(HOUR <= 24) %>%
+  filter(DAY_WEEK != 9) %>%
+  group_by(sexStr, HOUR, DAY_WEEK) %>%
+  summarise(numAccidents = n()) %>%
+  arrange(desc(numAccidents))
+ggplot(grouped,aes(x=HOUR, y=numAccidents)) + 
+  geom_bar(stat='identity') + 
+  facet_grid(sexStr~DAY_WEEK) + 
+  xlab("Hours of the day") + 
+  ylab("Total number of accidents")
+```
+
+From the graphs it looks like both men and women and then its men. you can also see that Women dont get into many accidents in all categories. The accidents go crazy at night.
+
+```{R}
+df <- read_xlsx("states.xlsx") 
+states <- map_data('state')
+counties <- map_data('county')
+```
+
+### Question 7
+```{R}
+var <- c("STATE", "COUNTY", "FATALS")
+fatalities <- acc[var]
+df$'State Code' <- as.numeric(df$`State Code`)
+df$'City Code' <- as.numeric(df$`City Code`)
+df$'County Code' <- as.numeric(df$`County Code`)
+fatalities <- fatalities %>%
+  group_by(STATE, COUNTY) %>%
+  summarize(FATALS = sum(FATALS))
+fatalities <- fatalities %>% left_join(df, by=c('COUNTY' = 'County Code', 'STATE' = 'State Code'))
+var2 <- c("State Name", "County Name", "FATALS")
+fatalities <- fatalities[var2]
+fatalities <- unique(fatalities)
+fatalities$`State Name` <- tolower(fatalities$`State Name`)
+fatalities$`County Name` <- tolower(fatalities$`County Name`)
+fatalities <- fatalities %>% right_join(counties, by=c('County Name' = 'subregion', 'State Name' = 'region'))
+ggplot(fatalities, aes(x=long, y=lat)) + 
+  geom_polygon(aes(group=group)) +
+  geom_polygon(aes(group=group, fill=FATALS))
+```
+
+The plot shown mainly has three main colors. The gray areas are places that have no recorded fatal car accidents in the data. The dark blue shows areas with minimal amounts of fatalities and light blue shows the most number of fatal car accidents. In southern California its the light blue which has alot of traffic and it makes sense that there would be alot of accidents there. The one thing I am surprised about is that its not light blue in NYC where there is alot of traffic.
+
+### Question 8
+```{R}
+Winter <- acc %>%
+          filter(MONTH  < 5 | MONTH > 10)
+Summer <- acc %>%
+          filter(MONTH > 5 & MONTH < 10)
+var3 <- c("State Name", "State Code")
+df2 <- df[var3]
+df2 <- unique(df2)
+winterFatal <- Winter %>%
+  group_by(STATE) %>%
+  summarize(FATALS = sum(FATALS))
+summerFatal <- Summer %>%
+  group_by(STATE) %>%
+  summarize(FATALS = sum(FATALS))
+summerFatal <- summerFatal %>% left_join(df2, by=c('STATE' = 'State Code'))
+summerFatal$`State Name` <- tolower(summerFatal$`State Name`)
+summerFatal <- summerFatal %>% right_join(states, by=c('State Name' = 'region'))
+var2 <- c("STATE", "FATALS", "long", "lat", "group")
+summerFatal <- summerFatal[var2]
+ggplot(summerFatal, aes(x=long, y=lat, fill = FATALS)) +
+  geom_polygon(aes(group = group)) +
+  labs(title = "Car Accidents in the Summer by State")
+winterFatal <- winterFatal %>% left_join(df2, by=c('STATE' = 'State Code'))
+winterFatal$`State Name` <- tolower(winterFatal$`State Name`)
+winterFatal <- winterFatal %>% right_join(states, by=c('State Name' = 'region'))
+winterFatal <- winterFatal[var2]
+ggplot(winterFatal, aes(x=long, y=lat, fill = FATALS)) +
+  geom_polygon(aes(group = group)) +
+  labs(title = "Car Accidents in the Winter by State")
+```
+
+Winter seems to be more dangerous since there are more car accidents in each state in the Winter. Texas and California seem to have the most accidents no matter where in summer or winter. I am still surprised that NY doesn't have that many accidents compared to California or Texas.
